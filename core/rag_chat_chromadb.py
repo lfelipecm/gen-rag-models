@@ -1,51 +1,15 @@
-from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
-from pinecone import Pinecone
-from typing import List, Dict
-import os
-from .prompts import PromptManager
+from core.documents_services import documents_services
 
-class RAGChat:
-    def __init__(self, index_name: str):
-        self.llm = ChatOpenAI(
-            model_name="gpt-3.5-turbo",
-            temperature=0.7
-        )
-        self.prompt_manager = PromptManager()
-        self.conversation_history: List[Dict] = []
-        
-        # Initialize Pinecone
-        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-        self.index = pc.Index(index_name)
+class RAGChromaDB:
+    def __init__(self):
+        self.document_services = documents_services()
     
     async def get_response(self, user_input: str) -> str:
         """Get response using RAG approach"""
-        # First, rephrase the question for better retrieval
-        rephrased_query = await self._rephrase_query(user_input)
+        response = self.document_services.load_retriever_chain(user_input)
         
-        # Retrieve relevant context from Pinecone
-        context = self._retrieve_context(rephrased_query)
-        
-        # Format prompt with context
-        prompt = self.prompt_manager.retrieval_prompt["human"].format(
-            context=context,
-            question=user_input
-        )
-        
-        messages = [
-            SystemMessage(content=self.prompt_manager.retrieval_prompt["system"]),
-            *[HumanMessage(content=msg["content"]) for msg in self.conversation_history if msg["role"] == "user"],
-            HumanMessage(content=prompt)
-        ]
-        
-        response = await self.llm.ainvoke(messages)
-        
-        self.conversation_history.extend([
-            {"role": "user", "content": user_input},
-            {"role": "assistant", "content": response.content}
-        ])
-        
-        return response.content
+        return response['answer']
     
     async def _rephrase_query(self, query: str) -> str:
         """Rephrase the query for better retrieval"""
