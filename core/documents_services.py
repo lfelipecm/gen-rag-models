@@ -53,7 +53,6 @@ class documents_services:
 
         system_prompt = (
             "Use the given context to answer the question. "
-            "Do not include your own opinion or analysis. "
             "Be concise and clear. "
             "If you don't know the answer, say you don't know. "
             "Use three sentence maximum and keep the answer concise. "

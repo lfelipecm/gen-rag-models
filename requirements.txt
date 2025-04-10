@@ -8,3 +8,8 @@ chromadb
 langchain-ollama
 langchain-chroma
 langchain-community
+PyPDF2
+python-docx
+docx2txt
+unstructured
+python-magic

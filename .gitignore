@@ -139,6 +139,7 @@ genrag/
 
 # Database files
 db/
+chroma_db/
 
 # Spyder project settings
 .spyderproject

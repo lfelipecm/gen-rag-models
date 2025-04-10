@@ -1,9 +1,18 @@
 from langchain.schema import HumanMessage, SystemMessage
 from core.documents_services import documents_services
+from .prompts import PromptManager
+from typing import List, Dict
+from langchain_ollama import ChatOllama
 
 class RAGChromaDB:
     def __init__(self):
+        self.llm = ChatOllama(
+            model="qwen2.5",
+            temperature=0.1
+        )
         self.document_services = documents_services()
+        self.prompt_manager = PromptManager()
+        self.conversation_history: List[Dict] = []
     
     async def get_response(self, user_input: str) -> str:
         """Get response using RAG approach"""
@@ -21,7 +30,7 @@ class RAGChromaDB:
         return response.content
     
     def _retrieve_context(self, query: str, top_k: int = 3) -> str:
-        """Retrieve relevant context from Pinecone"""
+        """Retrieve relevant context from ChromaDB"""
         results = self.index.query(
             vector=[0] * 1536,  # Replace with actual query embedding
             top_k=top_k,
