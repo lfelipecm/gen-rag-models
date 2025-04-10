@@ -1,7 +1,10 @@
-streamlit==1.32.0
-langchain==0.1.12
-langchain-openai==0.0.8
-pinecone-client==3.0.2
-python-dotenv==1.0.1
-huggingface-hub==0.21.4
-chromadb==0.4.24
+streamlit
+langchain
+langchain-openai
+pinecone-client
+python-dotenv
+huggingface-hub
+chromadb
+langchain-ollama
+langchain-chroma
+langchain-community
