@@ -15,9 +15,10 @@ from PyPDF2 import PdfReader
 # Initialize Ollama models and embeddings
 @st.cache_resource
 def init_models():
-    model_name = "phi4"
+    model_name = "gemma3:12b"
+    embedding_model = "llama3"
     chat_model = ChatOllama(model=model_name, temperature=0.1)
-    embeddings = OllamaEmbeddings(model=model_name, temperature=0.1)
+    embeddings = OllamaEmbeddings(model=embedding_model, temperature=0.1)
     return chat_model, embeddings
 
 # Initialize vector store for RAG
@@ -73,7 +74,16 @@ async def summarize_text(file):
     for page in pdf_reader.pages:
         text += page.extract_text()
 
-    prompt = f"Please provide a concise summary of the following text:\n\n{text}"
+    prompt = f"“Can you provide a comprehensive summary of the given text:\n\n{text}? \
+    The summary should cover all the key points and main ideas presented in \
+    the original text, while also condensing the information into a concise and \
+        easy-to-understand format. Please ensure that the summary includes relevant \
+            details and examples that support the main ideas, while avoiding any \
+                unnecessary information or repetition. The length of the summary \
+                    should be appropriate for the length and complexity of the original \
+                        text, providing a clear and accurate overview without omitting any \
+                        important information.”"
+                        
     return st.session_state.llm.predict(prompt)
 
 async def chat(user_input):
@@ -89,11 +99,15 @@ def main():
     init_session_state(embeddings, chat_model)
     
     # Create tabs for different areas
-    tab1, tab2, tab3, tab4 = st.tabs(["Generic Chat", "RAG Chat", "Summarization", "Instructions"])
+    tab1, tab2, tab3 = st.tabs(["Generic Chat", "RAG Chat", "Summarization"])
     
     # Tab 1: Generic Chat
     with tab1:
         st.header("Generic Chat")
+        st.markdown("""
+            - Simply type your message and get responses from the AI
+            - Use this for general questions and conversations
+            """)
         if st.button("Clear chat", key="clear_generic"):
             st.session_state.messages["generic"] = []
             st.session_state.memories["generic"].clear()
@@ -122,6 +136,12 @@ def main():
     # Tab 2: RAG Chat
     with tab2:
         st.header("RAG Chat")
+        st.markdown("""
+            - Upload one or more text files to create a knowledge base
+            - Click 'Process Files' to add them to the vector database
+            - Ask questions about the uploaded documents
+            - The AI will use the relevant information to answer your questions
+            """)
         if st.button("Clear chat", key="clear_rag"):
             st.session_state.messages["rag"] = []
             st.session_state.memories["rag"].clear()
@@ -162,6 +182,11 @@ def main():
     # Tab 3: Summarization
     with tab3:
         st.header("Text Summarization")
+        st.markdown("""
+            - Upload a single text file
+            - Click 'Summarize' to get a concise summary of the content
+            - View the summary in the chat area below
+            """)
         if st.button("Clear chat", key="clear_summary"):
             st.session_state.messages["summary"] = []
             st.session_state.memories["summary"].clear()
@@ -179,29 +204,6 @@ def main():
         for message in st.session_state.messages["summary"]:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
-    
-    # Tab 4: Instructions
-    with tab4:
-        st.header("Instructions")
-        st.markdown("""
-        ### How to Use This App
-        
-        1. **Generic Chat**
-           - Simply type your message and get responses from the AI
-           - Use this for general questions and conversations
-        
-        2. **RAG Chat**
-           - Upload one or more text files to create a knowledge base
-           - Click 'Process Files' to add them to the vector database
-           - Ask questions about the uploaded documents
-           - The AI will use the relevant information to answer your questions
-        
-        3. **Summarization**
-           - Upload a single text file
-           - Click 'Summarize' to get a concise summary of the content
-           - View the summary in the chat area below
-        
-        """)
 
 if __name__ == "__main__":
     main()
