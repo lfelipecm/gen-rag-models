@@ -11,7 +11,6 @@ import os
 import asyncio
 from PyPDF2 import PdfReader
 
-
 # Initialize Ollama models and embeddings
 @st.cache_resource
 def init_models():
@@ -91,8 +90,8 @@ async def chat(user_input):
     
 
 def main():
-    st.set_page_config(page_title="Multi-Purpose Chat App", layout="wide")
-    st.title("Multi-Purpose Chat Application")
+    st.set_page_config(page_title="Multi-Purpose Chat App", layout="wide", page_icon="🤖")
+    st.title("🤖 Multi-Purpose Chat Application")
     
     # Initialize models and session state
     chat_model, embeddings = init_models()
