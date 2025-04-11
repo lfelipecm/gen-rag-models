@@ -1,13 +1,13 @@
 from langchain.schema import HumanMessage, SystemMessage
 from typing import List, Dict
-from .prompts import PromptManager
+from core.prompts import PromptManager
 from langchain_ollama import ChatOllama
 
 class LLMChat:
-    def __init__(self):
+    def __init__(self, model_name: str, temperature: float):
         self.llm = ChatOllama(
-            model="qwen2.5",
-            temperature=0.1
+            model=model_name,
+            temperature=temperature
         )
         self.prompt_manager = PromptManager()
         self.conversation_history: List[Dict] = []

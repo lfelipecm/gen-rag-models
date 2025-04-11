@@ -13,3 +13,4 @@ python-docx
 docx2txt
 unstructured
 python-magic
+asyncio

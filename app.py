@@ -10,13 +10,15 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader, Unstru
 import tempfile
 import os
 import asyncio
+from PyPDF2 import PdfReader
+
 
 
 
 # Initialize Ollama models and embeddings
 @st.cache_resource
 def init_models():
-    model_name = "mistral-small3.1"
+    model_name = "phi4"
     chat_model = ChatOllama(model=model_name, temperature=0.1)
     embeddings = OllamaEmbeddings(model=model_name, temperature=0.1)
     return chat_model, embeddings
@@ -65,8 +67,12 @@ async def process_uploaded_files(files, vectorstore):
     return vectorstore
 
 async def summarize_text(file, chat_model):
-    text_content = file.getvalue().decode("utf-8")
-    prompt = f"Please provide a concise summary of the following text:\n\n{text_content}"
+    pdf_reader = PdfReader(file)
+    text = ""
+    for page in pdf_reader.pages:
+        text += page.extract_text()
+
+    prompt = f"Please provide a long summary of the following text:\n\n{text}"
     return chat_model.predict(prompt)
 
 async def chat(user_input, chat_model):
