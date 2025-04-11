@@ -102,24 +102,18 @@ def main():
     
     # Tab 1: Generic Chat
     with tab1:
-        st.header("Generic Chat")
-        st.markdown("""
-            - Simply type your message and get responses from the AI
-            - Use this for general questions and conversations
-            """)
-        if st.button("Clear chat", key="clear_generic"):
-            st.session_state.messages["generic"] = []
-            st.session_state.memories["generic"].clear()
-        for message in st.session_state.messages["generic"]:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-        
-        if generic_input := st.chat_input("Type your message here (Generic Chat)...", key="generic"):
-            st.session_state.messages["generic"].append({"role": "user", "content": generic_input})
-            with st.chat_message("user"):
-                st.write(generic_input)
-            
-            with st.chat_message("assistant"):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.header("Generic Chat")
+            st.markdown("""
+                - Simply type your message and get responses from the AI
+                - Use this for general questions and conversations
+                """)
+            if st.button("Clear chat", key="clear_generic"):
+                st.session_state.messages["generic"] = []
+                st.session_state.memories["generic"].clear()
+            if generic_input := st.chat_input("Type your message here (Generic Chat)...", key="generic"):
+                st.session_state.messages["generic"].append({"role": "user", "content": generic_input})
                 with st.spinner("Getting response..."):
                     # Add message to memory
                     st.session_state.memories["generic"].save_context({"input": generic_input}, {"output": ""})
@@ -129,80 +123,91 @@ def main():
                     response = asyncio.run(chat(f"Previous conversation: {chat_history}\n\nUser: {generic_input}"))
                     # Save response to memory
                     st.session_state.memories["generic"].save_context({"input": ""}, {"output": response})
-                st.write(response)
-                st.session_state.messages["generic"].append({"role": "assistant", "content": response})
+                    st.session_state.messages["generic"].append({"role": "assistant", "content": response})
+        with col2:
+            st.header("Conversation")
+            for message in st.session_state.messages["generic"]:
+                with st.chat_message(message["role"]):
+                    st.write(message["content"])
     
     # Tab 2: RAG Chat
     with tab2:
-        st.header("RAG Chat")
-        st.markdown("""
-            - Upload one or more text files to create a knowledge base
-            - Click 'Process Files' to add them to the vector database
-            - Ask questions about the uploaded documents
-            - The AI will use the relevant information to answer your questions
-            """)
-        if st.button("Clear chat", key="clear_rag"):
-            st.session_state.messages["rag"] = []
-            st.session_state.memories["rag"].clear()
-        uploaded_files = st.file_uploader(
-            "Upload files for RAG (PDF, Word, or Text files)", 
-            accept_multiple_files=True,
-            type=["pdf", "docx", "doc", "txt"],
-            key="rag_files"
-        )
-        
-        if uploaded_files:
-            if st.button("Process Files"):
-                with st.spinner("Processing files..."):
-                    st.session_state.vectorstore = asyncio.run(process_uploaded_files(
-                        uploaded_files,
-                        st.session_state.vectorstore
-                    ))
-                st.success("Files processed successfully!")
-        
-        if rag_input := st.chat_input("Type your message here (RAG Chat)...", key="rag"):
-            st.session_state.messages["rag"].append({"role": "user", "content": rag_input})
-            with st.chat_message("user"):
-                st.write(rag_input)
-            
-            retriever = st.session_state.vectorstore.as_retriever()
-            rag_chain = ConversationalRetrievalChain.from_llm(
-                st.session_state.llm,
-                retriever=retriever,
-                memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.header("RAG Chat")
+            st.markdown("""
+                - Upload one or more text files to create a knowledge base
+                - Click 'Process Files' to add them to the vector database
+                - Ask questions about the uploaded documents
+                - The AI will use the relevant information to answer your questions
+                """)
+            if st.button("Clear chat", key="clear_rag"):
+                st.session_state.messages["rag"] = []
+                st.session_state.memories["rag"].clear()
+            uploaded_files = st.file_uploader(
+                "Upload files for RAG (PDF, Word, or Text files)", 
+                accept_multiple_files=True,
+                type=["pdf", "docx", "doc", "txt"],
+                key="rag_files"
             )
             
-            with st.chat_message("assistant"):
+            if uploaded_files:
+                if st.button("Process Files"):
+                    with st.spinner("Processing files..."):
+                        st.session_state.vectorstore = asyncio.run(process_uploaded_files(
+                            uploaded_files,
+                            st.session_state.vectorstore
+                        ))
+                    st.success("Files processed successfully!")
+            
+            if rag_input := st.chat_input("Type your message here (RAG Chat)...", key="rag"):
+                st.session_state.messages["rag"].append({"role": "user", "content": rag_input})
+                retriever = st.session_state.vectorstore.as_retriever()
+                rag_chain = ConversationalRetrievalChain.from_llm(
+                    st.session_state.llm,
+                    retriever=retriever,
+                    memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+                )
+                
                 with st.spinner("Processing files..."):
                     response = rag_chain.invoke({"question": rag_input})["answer"]
-                st.write(response)
-                st.session_state.messages["rag"].append({"role": "assistant", "content": response})
+                    st.session_state.messages["rag"].append({"role": "assistant", "content": response})
+        
+        with col2:
+            st.header("Conversation")
+            for message in st.session_state.messages["rag"]:
+                with st.chat_message(message["role"]):
+                    st.write(message["content"])
     
     # Tab 3: Summarization
     with tab3:
-        st.header("Text Summarization")
-        st.markdown("""
-            - Upload a single text file
-            - Click 'Summarize' to get a concise summary of the content
-            - View the summary in the chat area below
-            """)
-        if st.button("Clear chat", key="clear_summary"):
-            st.session_state.messages["summary"] = []
-            st.session_state.memories["summary"].clear()
-        uploaded_file = st.file_uploader(
-            "Upload a file to summarize (PDF, Word, or Text file)",
-            type=["pdf", "docx", "doc", "txt"],
-            key="summary_file"
-        )
-        
-        if uploaded_file and st.button("Summarize"):
-            with st.spinner("Generating summary..."):
-                summary = asyncio.run(summarize_text(uploaded_file))
-                st.session_state.messages["summary"].append({"role": "assistant", "content": summary})
+        col1, col2 = st.columns(2)
+        with col1:
+            st.header("Text Summarization")
+            st.markdown("""
+                - Upload a single text file
+                - Click 'Summarize' to get a concise summary of the content
+                - View the summary in the chat area below
+                """)
+            if st.button("Clear chat", key="clear_summary"):
+                st.session_state.messages["summary"] = []
+                st.session_state.memories["summary"].clear()
+            uploaded_file = st.file_uploader(
+                "Upload a file to summarize (PDF, Word, or Text file)",
+                type=["pdf", "docx", "doc", "txt"],
+                key="summary_file"
+            )
             
-        for message in st.session_state.messages["summary"]:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
+            if uploaded_file and st.button("Summarize"):
+                with st.spinner("Generating summary..."):
+                    summary = asyncio.run(summarize_text(uploaded_file))
+                    st.session_state.messages["summary"].append({"role": "assistant", "content": summary})
+        
+        with col2:
+            st.header("Conversation")
+            for message in st.session_state.messages["summary"]:
+                with st.chat_message(message["role"]):
+                    st.write(message["content"])
 
 if __name__ == "__main__":
     main()
