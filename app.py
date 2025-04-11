@@ -1,8 +1,7 @@
-from langchain_core import embeddings
 import streamlit as st
-from langchain_ollama import ChatOllama
-from langchain_ollama import OllamaEmbeddings
-from langchain_chroma import Chroma
+from langchain_ollama.chat_models import ChatOllama
+from langchain_ollama.embeddings import OllamaEmbeddings
+from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
@@ -11,8 +10,6 @@ import tempfile
 import os
 import asyncio
 from PyPDF2 import PdfReader
-
-
 
 
 # Initialize Ollama models and embeddings
@@ -25,11 +22,11 @@ def init_models():
 
 # Initialize vector store for RAG
 @st.cache_resource
-def init_vectorstore():
-    return Chroma(embedding_function=embeddings, persist_directory="./chroma_db")
+def init_vectorstore(_embeddings):
+    return Chroma(embedding_function=_embeddings, persist_directory="./chroma_db")
 
 # Initialize session state
-def init_session_state():
+def init_session_state(_embeddings, chat_model):
     if "messages" not in st.session_state:
         st.session_state.messages = {
             "generic": [],
@@ -42,11 +39,15 @@ def init_session_state():
             "rag": ConversationBufferMemory(memory_key="chat_history", return_messages=True),
             "summary": ConversationBufferMemory()
         }
+
     if "vectorstore" not in st.session_state:
-        st.session_state.vectorstore = init_vectorstore()
+        st.session_state.vectorstore = init_vectorstore(_embeddings)
+    if "llm" not in st.session_state:
+        st.session_state.llm = chat_model
 
 async def process_uploaded_files(files, vectorstore):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+
     for file in files:
         file_extension = os.path.splitext(file.name)[1].lower()
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
@@ -66,17 +67,17 @@ async def process_uploaded_files(files, vectorstore):
         os.unlink(tmp_file.name)
     return vectorstore
 
-async def summarize_text(file, chat_model):
+async def summarize_text(file):
     pdf_reader = PdfReader(file)
     text = ""
     for page in pdf_reader.pages:
         text += page.extract_text()
 
-    prompt = f"Please provide a long summary of the following text:\n\n{text}"
-    return chat_model.predict(prompt)
+    prompt = f"Please provide a concise summary of the following text:\n\n{text}"
+    return st.session_state.llm.predict(prompt)
 
-async def chat(user_input, chat_model):
-    return chat_model.predict(user_input)
+async def chat(user_input):
+    return st.session_state.llm.predict(user_input)
     
 
 def main():
@@ -85,7 +86,7 @@ def main():
     
     # Initialize models and session state
     chat_model, embeddings = init_models()
-    init_session_state()
+    init_session_state(embeddings, chat_model)
     
     # Create tabs for different areas
     tab1, tab2, tab3, tab4 = st.tabs(["Generic Chat", "RAG Chat", "Summarization", "Instructions"])
@@ -112,7 +113,7 @@ def main():
                     # Get chat history
                     chat_history = st.session_state.memories["generic"].load_memory_variables({})
                     # Generate response with context
-                    response = asyncio.run(chat(f"Previous conversation: {chat_history}\n\nUser: {generic_input}", chat_model))
+                    response = asyncio.run(chat(f"Previous conversation: {chat_history}\n\nUser: {generic_input}"))
                     # Save response to memory
                     st.session_state.memories["generic"].save_context({"input": ""}, {"output": response})
                 st.write(response)
@@ -140,10 +141,6 @@ def main():
                     ))
                 st.success("Files processed successfully!")
         
-        for message in st.session_state.messages["rag"]:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-        
         if rag_input := st.chat_input("Type your message here (RAG Chat)...", key="rag"):
             st.session_state.messages["rag"].append({"role": "user", "content": rag_input})
             with st.chat_message("user"):
@@ -151,13 +148,14 @@ def main():
             
             retriever = st.session_state.vectorstore.as_retriever()
             rag_chain = ConversationalRetrievalChain.from_llm(
-                chat_model,
+                st.session_state.llm,
                 retriever=retriever,
                 memory=ConversationBufferMemory(memory_key="chat_history", return_messages=True)
             )
             
             with st.chat_message("assistant"):
-                response = rag_chain.invoke({"question": rag_input})["answer"]
+                with st.spinner("Processing files..."):
+                    response = rag_chain.invoke({"question": rag_input})["answer"]
                 st.write(response)
                 st.session_state.messages["rag"].append({"role": "assistant", "content": response})
     
@@ -175,7 +173,7 @@ def main():
         
         if uploaded_file and st.button("Summarize"):
             with st.spinner("Generating summary..."):
-                summary = asyncio.run(summarize_text(uploaded_file, chat_model))
+                summary = asyncio.run(summarize_text(uploaded_file))
                 st.session_state.messages["summary"].append({"role": "assistant", "content": summary})
             
         for message in st.session_state.messages["summary"]:
