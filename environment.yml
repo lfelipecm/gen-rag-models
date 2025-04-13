@@ -1,4 +1,4 @@
-name: /Users/felipe/Workspace/gen-rag-models/genrag
+name: genrag
 channels:
   - defaults
   - https://repo.anaconda.com/pkgs/main
